@@ -1,79 +1,102 @@
 package com.borwe.profilecard
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.unit.dp
 import com.borwe.profilecard.ui.theme.ProfileCardTheme
-import com.borwe.profilecard.viewmodels.Direction
+import com.borwe.profilecard.ui.theme.Typography
 import com.borwe.profilecard.viewmodels.ProfilesViewModel
 import com.borwe.profilecard.viewmodels.ProfilesViewModelFactory
-import com.borwe.profilecard.viewmodels.SwipeViewModel
+import com.borwe.profilecard.views.Profile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val swipingViewModel: SwipeViewModel by viewModels()
-        val profilesViewModel: ProfilesViewModel by viewModels{ ProfilesViewModelFactory() }
+        val profilesViewModel: ProfilesViewModel by viewModels{ ProfilesViewModelFactory(this) }
 
-        swipingViewModel.finalSwapFlow.observe(this, {
-            profilesViewModel.viewModelScope.launch {
-                profilesViewModel.onChangeProfile(it)
-            }
-        })
         setContent {
             ProfileCardTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color(50,155,50)
                 ) {
-                    Main( swipingViewModel, profilesViewModel)
+                    Main( profilesViewModel)
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Main(swipeViewModel: SwipeViewModel, profilesViewModel: ProfilesViewModel, modifier: Modifier = Modifier) {
-    Scaffold() {
-        Column(modifier = Modifier.padding(it)
-            .fillMaxSize()
-            .pointerInput(Unit){
-                detectVerticalDragGestures(onDragEnd = {
-                    swipeViewModel.onDoneSwiping()
-                }) { change, dragAmount ->
-                    Log.d("AMOUNT:",dragAmount.toString())
-                    if(dragAmount<0){
-                        swipeViewModel.onSwiping(Direction.SCROLL_UP)
-                    }else if(dragAmount > 0){
-                        swipeViewModel.onSwiping(Direction.SCROLL_DOWN)
+fun Main(profilesViewModel: ProfilesViewModel) {
+    Scaffold(topBar =
+    {
+        TopAppBar( title = {
+            Row(modifier = Modifier.fillMaxWidth(), Arrangement.Center){
+                Text(text = "HUTSY 5 MEMBERS", style = Typography.titleLarge)
+            }
+        }, colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color(50,155,50)
+        ))
+    }, containerColor = Color(50,155,50)
+    ) {
+        Column(modifier = Modifier
+            .padding(it)
+            .verticalScroll(rememberScrollState())
+            .fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            var profileUsers: Long = 0
+            for(member in profilesViewModel.profiles){
+                profileUsers+=1
+                val profileState  = remember { MutableTransitionState(false).apply {
+                    CoroutineScope(Dispatchers.IO).launch{
+                        delay(profileUsers * 1000)
+                        targetState = true
                     }
+                }}
+                AnimatedVisibility(visibleState = profileState,
+                    enter = slideInVertically(initialOffsetY = {
+                        -300
+                    })
+                ) {
+                    Profile(member, profilesViewModel.emailDrawable)
                 }
             }
-        ) {
-            Text(
-                text = "Hello ${profilesViewModel.currentProfile.value.name}",
-                modifier = modifier
-            )
         }
     }
 }
